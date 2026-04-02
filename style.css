@@ -151,20 +151,6 @@ html, body {
 
 .toolbar-btn:active { opacity: 0.75; }
 
-.boss-key-btn {
-  flex: 1;
-  background: #111;
-  color: #555;
-  border-color: #333;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.boss-key-btn:active {
-  background: #000;
-  color: #333;
-}
-
 /* Boss Key full-screen overlay */
 #boss-overlay {
   display: none;
