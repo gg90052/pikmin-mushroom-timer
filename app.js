@@ -166,6 +166,9 @@ function addLongPressHandler(el, markerId) {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
 
+  // Prevent single-click from bubbling to markersLayer (which would open the add modal)
+  el.addEventListener('click', (e) => e.stopPropagation());
+
   el.addEventListener('touchstart', start, { passive: true });
   el.addEventListener('touchend',   cancel);
   el.addEventListener('touchmove',  cancel);
@@ -217,41 +220,8 @@ function startTick() {
   }, 1000);
 }
 
-// ── Double-tap detection ───────────────────────────────────────────────────
-let lastTapTime = 0;
-let lastTapX = 0;
-let lastTapY = 0;
-
-markersLayer.addEventListener('touchend', (e) => {
-const now = Date.now();
-  const touch = e.changedTouches[0];
-  const x = touch.clientX;
-  const y = touch.clientY;
-
-  const isDouble =
-    now - lastTapTime < 350 &&
-    Math.abs(x - lastTapX) < 40 &&
-    Math.abs(y - lastTapY) < 40;
-
-  if (isDouble) {
-    e.preventDefault();
-    lastTapTime = 0;
-    // Only add if not tapping an existing marker
-    if (!e.target.closest('.marker')) {
-      const rect = markersLayer.getBoundingClientRect();
-      const xPct = (x - rect.left) / rect.width;
-      const yPct = (y - rect.top) / rect.height;
-      openAddModal(xPct, yPct);
-    }
-  } else {
-    lastTapTime = now;
-    lastTapX = x;
-    lastTapY = y;
-  }
-}, { passive: false });
-
-// Desktop double-click support
-markersLayer.addEventListener('dblclick', (e) => {
+// ── Single-click to add marker ─────────────────────────────────────────────
+markersLayer.addEventListener('click', (e) => {
   if (e.target.closest('.marker')) return;
   const rect = markersLayer.getBoundingClientRect();
   const xPct = (e.clientX - rect.left) / rect.width;

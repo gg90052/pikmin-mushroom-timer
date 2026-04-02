@@ -29,7 +29,9 @@ html, body {
   background: var(--green-dark);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
   user-select: none;
+  touch-action: manipulation;
 }
 
 #app {
@@ -195,27 +197,33 @@ html, body {
 /* ── Markers ── */
 .marker {
   position: absolute;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%); /* pie center = click point */
   cursor: pointer;
   z-index: 5;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* suppress iOS long-press callout */
 }
 
 .marker-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
   background: var(--surface);
   border: 1.5px solid rgba(255,255,255,0.15);
   border-radius: 8px;
   padding: 5px 9px;
-  margin-bottom: 4px;
   min-width: 70px;
   max-width: 130px;
   text-align: center;
   box-shadow: var(--shadow);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  position: relative;
+  white-space: nowrap;
+  pointer-events: none; /* bubble doesn't intercept clicks */
 }
 
 .marker-bubble::after {
