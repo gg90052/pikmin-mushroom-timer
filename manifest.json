@@ -1,0 +1,18 @@
+{
+  "name": "皮克敏蘑菇計時器",
+  "short_name": "蘑菇計時",
+  "description": "在地圖截圖上標記蘑菇位置並倒數計時",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1a3a0e",
+  "theme_color": "#2d5a1b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
