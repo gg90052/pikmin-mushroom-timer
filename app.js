@@ -41,7 +41,6 @@ const GRACE_MS = 5 * 60 * 1000; // 5-minute grace period after expiry
 let markers = [];         // { id, title, x, y, expiresAt, totalMs }
 let pendingX = 0;
 let pendingY = 0;
-let selectedMarkerId = null;
 let pendingDeleteId = null;
 let tickInterval = null;
 let imageObjectURL = null;
@@ -146,50 +145,36 @@ function renderMarker(marker) {
   pie.style.setProperty('--pie-pct', (info.fraction * 100).toFixed(1) + '%');
   el.appendChild(pie);
 
-  el.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleSelectMarker(marker.id);
-  });
-
+  addLongPressHandler(el, marker.id);
   markersLayer.appendChild(el);
 }
 
-function toggleSelectMarker(id) {
-  if (selectedMarkerId === id) {
-    deselectMarker();
-  } else {
-    selectMarker(id);
-  }
-}
+// ── Long Press to Delete ───────────────────────────────────────────────────
+let longPressTimer = null;
 
-function selectMarker(id) {
-  deselectMarker();
-  selectedMarkerId = id;
+function addLongPressHandler(el, markerId) {
+  const DURATION = 500;
 
-  const el = markersLayer.querySelector(`[data-id="${id}"]`);
-  if (!el) return;
-  el.classList.add('selected');
-
-  // Add delete button
-  const btn = document.createElement('div');
-  btn.className = 'marker-delete-btn';
-  btn.textContent = '×';
-  btn.addEventListener('click', (e) => {
+  function start(e) {
     e.stopPropagation();
-    confirmDelete(id);
-  });
-  el.querySelector('.marker-bubble').appendChild(btn);
-}
-
-function deselectMarker() {
-  if (!selectedMarkerId) return;
-  const el = markersLayer.querySelector(`[data-id="${selectedMarkerId}"]`);
-  if (el) {
-    el.classList.remove('selected');
-    const btn = el.querySelector('.marker-delete-btn');
-    if (btn) btn.remove();
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      confirmDelete(markerId);
+    }, DURATION);
   }
-  selectedMarkerId = null;
+  function cancel() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }
+
+  el.addEventListener('touchstart', start, { passive: true });
+  el.addEventListener('touchend',   cancel);
+  el.addEventListener('touchmove',  cancel);
+
+  // Desktop: hold mouse button or right-click
+  el.addEventListener('mousedown',  (e) => { if (e.button === 0) start(e); });
+  el.addEventListener('mouseup',    cancel);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); confirmDelete(markerId); });
 }
 
 function updateMarkerEl(id) {
@@ -199,7 +184,7 @@ function updateMarkerEl(id) {
   if (!el) return;
 
   const info = getMarkerInfo(marker);
-  el.className = `marker state-${info.phase}${selectedMarkerId === id ? ' selected' : ''}`;
+  el.className = `marker state-${info.phase}`;
 
   const cd = el.querySelector('.marker-countdown');
   if (cd) cd.textContent = info.text;
@@ -238,9 +223,7 @@ let lastTapX = 0;
 let lastTapY = 0;
 
 markersLayer.addEventListener('touchend', (e) => {
-  if (e.target.classList.contains('marker-delete-btn')) return;
-
-  const now = Date.now();
+const now = Date.now();
   const touch = e.changedTouches[0];
   const x = touch.clientX;
   const y = touch.clientY;
@@ -264,10 +247,6 @@ markersLayer.addEventListener('touchend', (e) => {
     lastTapTime = now;
     lastTapX = x;
     lastTapY = y;
-    // Tap on empty area deselects
-    if (!e.target.closest('.marker')) {
-      deselectMarker();
-    }
   }
 }, { passive: false });
 
@@ -280,12 +259,6 @@ markersLayer.addEventListener('dblclick', (e) => {
   openAddModal(xPct, yPct);
 });
 
-// Click on empty area deselects (desktop)
-markersLayer.addEventListener('click', (e) => {
-  if (!e.target.closest('.marker')) {
-    deselectMarker();
-  }
-});
 
 // ── Add Marker Modal ───────────────────────────────────────────────────────
 function openAddModal(xPct, yPct) {
@@ -309,7 +282,7 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
 });
 
 document.getElementById('modal-save').addEventListener('click', () => {
-  const title = markerTitleInput.value.trim() || '蘑菇';
+  const title = markerTitleInput.value.trim() || '香菇';
   const h = parseInt(timeHours.value) || 0;
   const m = parseInt(timeMinutes.value) || 0;
   const s = parseInt(timeSeconds.value) || 0;
@@ -341,6 +314,20 @@ document.getElementById('modal-save').addEventListener('click', () => {
   input.addEventListener('focus', () => input.select());
 });
 
+// Quick time buttons
+document.querySelectorAll('.quick-time-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const add = parseInt(btn.dataset.seconds);
+    let total = (parseInt(timeHours.value) || 0) * 3600
+              + (parseInt(timeMinutes.value) || 0) * 60
+              + (parseInt(timeSeconds.value) || 0)
+              + add;
+    timeHours.value   = Math.floor(total / 3600);
+    timeMinutes.value = Math.floor((total % 3600) / 60);
+    timeSeconds.value = total % 60;
+  });
+});
+
 // ── Delete Marker ──────────────────────────────────────────────────────────
 function confirmDelete(id) {
   const marker = markers.find(m => m.id === id);
@@ -361,7 +348,6 @@ document.getElementById('delete-confirm').addEventListener('click', () => {
   saveMarkers();
   const el = markersLayer.querySelector(`[data-id="${pendingDeleteId}"]`);
   if (el) el.remove();
-  selectedMarkerId = null;
   pendingDeleteId = null;
   deleteOverlay.classList.add('hidden');
   updateMarkerCount();
