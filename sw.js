@@ -1,5 +1,5 @@
 // ⬆ 每次部署更新時，將這個版號 +1 即可強制清除舊快取
-const CACHE_NAME = 'pikmin-timer-v8';
+const CACHE_NAME = 'pikmin-timer-v9';
 const ASSETS = [
   './',
   './index.html',
