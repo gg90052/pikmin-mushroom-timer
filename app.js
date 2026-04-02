@@ -44,6 +44,7 @@ let pendingY = 0;
 let pendingDeleteId = null;
 let tickInterval = null;
 let imageObjectURL = null;
+const scheduledNotifications = new Map(); // markerId → [timeoutId, ...]
 
 // ── DOM Refs ───────────────────────────────────────────────────────────────
 const emptyState = document.getElementById('empty-state');
@@ -70,6 +71,56 @@ function loadMarkers() {
 
 function saveMarkers() {
   localStorage.setItem('pikmin_markers', JSON.stringify(markers));
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+async function pushNotification(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    reg.showNotification(title, { body, icon: './icon.svg', tag, vibrate: [200, 100, 200] });
+  } catch {
+    new Notification(title, { body, icon: './icon.svg', tag });
+  }
+}
+
+function scheduleMarkerNotifications(marker) {
+  cancelMarkerNotifications(marker.id);
+  const now = Date.now();
+  const ids = [];
+
+  const WARN = 30_000; // 30 seconds before
+
+  // 30s before original countdown ends
+  const t1 = marker.expiresAt - WARN - now;
+  if (t1 > 0) {
+    ids.push(setTimeout(() =>
+      pushNotification(`🍄 ${marker.title}`, '倒數結束前 30 秒！即將進入 5 分鐘緩衝', `expiry-${marker.id}`)
+    , t1));
+  }
+
+  // 30s before grace period ends
+  const t2 = (marker.expiresAt + GRACE_MS) - WARN - now;
+  if (t2 > 0) {
+    ids.push(setTimeout(() =>
+      pushNotification(`⏰ ${marker.title}`, '緩衝時間剩 30 秒，香菇即將消失！', `grace-${marker.id}`)
+    , t2));
+  }
+
+  if (ids.length) scheduledNotifications.set(marker.id, ids);
+}
+
+function cancelMarkerNotifications(id) {
+  const ids = scheduledNotifications.get(id);
+  if (ids) { ids.forEach(clearTimeout); scheduledNotifications.delete(id); }
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -251,7 +302,9 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeAddModal();
 });
 
-document.getElementById('modal-save').addEventListener('click', () => {
+document.getElementById('modal-save').addEventListener('click', async () => {
+  // Must request from a user-gesture (required by iOS Safari)
+  await requestNotificationPermission();
   const title = markerTitleInput.value.trim() || '香菇';
   const h = parseInt(timeHours.value) || 0;
   const m = parseInt(timeMinutes.value) || 0;
@@ -274,6 +327,7 @@ document.getElementById('modal-save').addEventListener('click', () => {
 
   markers.push(marker);
   saveMarkers();
+  scheduleMarkerNotifications(marker);
   renderMarker(marker);
   updateMarkerCount();
   closeAddModal();
@@ -314,6 +368,7 @@ document.getElementById('delete-cancel').addEventListener('click', () => {
 
 document.getElementById('delete-confirm').addEventListener('click', () => {
   if (!pendingDeleteId) return;
+  cancelMarkerNotifications(pendingDeleteId);
   markers = markers.filter(m => m.id !== pendingDeleteId);
   saveMarkers();
   const el = markersLayer.querySelector(`[data-id="${pendingDeleteId}"]`);
@@ -325,6 +380,9 @@ document.getElementById('delete-confirm').addEventListener('click', () => {
 
 // ── Clear Expired ──────────────────────────────────────────────────────────
 document.getElementById('clear-expired-btn').addEventListener('click', () => {
+  markers
+    .filter(m => (m.expiresAt + GRACE_MS) <= Date.now())
+    .forEach(m => cancelMarkerNotifications(m.id));
   markers = markers.filter(m => (m.expiresAt + GRACE_MS) > Date.now());
   saveMarkers();
   renderAllMarkers();
@@ -379,6 +437,10 @@ async function init() {
   const hasImage = await loadStoredImage();
   if (hasImage) {
     renderAllMarkers();
+  }
+  // Re-schedule any pending notifications on page load (if already permitted)
+  if ('Notification' in window && Notification.permission === 'granted') {
+    markers.forEach(scheduleMarkerNotifications);
   }
 }
 

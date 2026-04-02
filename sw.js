@@ -1,5 +1,5 @@
 // ⬆ 每次部署更新時，將這個版號 +1 即可強制清除舊快取
-const CACHE_NAME = 'pikmin-timer-v2';
+const CACHE_NAME = 'pikmin-timer-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -28,5 +28,17 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) {
+        if ('focus' in c) return c.focus();
+      }
+      return clients.openWindow('./');
+    })
   );
 });
