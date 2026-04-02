@@ -66,7 +66,7 @@
               <span>時</span>
             </div>
             <div class="time-field">
-              <input type="number" id="time-minutes" min="0" max="59" value="30" inputmode="numeric">
+              <input type="number" id="time-minutes" min="0" max="59" value="0" inputmode="numeric">
               <span>分</span>
             </div>
             <div class="time-field">
@@ -81,16 +81,31 @@
           </div>
         </div>
 
-        <label class="notify-toggle">
-          <div class="notify-toggle-text">
-            <span class="notify-toggle-label">推播通知</span>
-            <span class="notify-toggle-desc">結束前 30 秒提醒</span>
-          </div>
-          <div class="toggle-switch">
-            <input type="checkbox" id="notify-enabled" checked>
-            <span class="toggle-track"></span>
-          </div>
-        </label>
+        <div class="notify-section">
+          <label class="notify-toggle">
+            <div class="notify-toggle-text">
+              <span class="notify-toggle-label">倒數結束提醒</span>
+              <span class="notify-toggle-desc">倒數歸零前 30 秒推播</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="notify-expiry" checked>
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+
+          <label class="notify-toggle">
+            <div class="notify-toggle-text">
+              <span class="notify-toggle-label">緩衝結束提醒</span>
+              <span class="notify-toggle-desc">緩衝時間結束前 30 秒推播</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="notify-grace" checked>
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+
+          <p class="notify-ios-hint">⚠️ iOS 用戶須將本頁加入主畫面後才能接收通知</p>
+        </div>
 
         <div class="modal-actions">
           <button id="modal-cancel" class="btn-secondary">取消</button>

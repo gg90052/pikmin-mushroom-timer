@@ -96,23 +96,24 @@ function scheduleMarkerNotifications(marker) {
   cancelMarkerNotifications(marker.id);
   const now = Date.now();
   const ids = [];
+  const WARN = 30_000;
 
-  const WARN = 30_000; // 30 seconds before
-
-  // 30s before original countdown ends
-  const t1 = marker.expiresAt - WARN - now;
-  if (t1 > 0) {
-    ids.push(setTimeout(() =>
-      pushNotification(`🍄 ${marker.title}`, '倒數結束前 30 秒！即將進入 5 分鐘緩衝', `expiry-${marker.id}`)
-    , t1));
+  if (marker.notifyExpiry) {
+    const t1 = marker.expiresAt - WARN - now;
+    if (t1 > 0) {
+      ids.push(setTimeout(() =>
+        pushNotification(`🍄 ${marker.title}`, '倒數結束前 30 秒！即將進入 5 分鐘緩衝', `expiry-${marker.id}`)
+      , t1));
+    }
   }
 
-  // 30s before grace period ends
-  const t2 = (marker.expiresAt + GRACE_MS) - WARN - now;
-  if (t2 > 0) {
-    ids.push(setTimeout(() =>
-      pushNotification(`⏰ ${marker.title}`, '緩衝時間剩 30 秒，香菇即將消失！', `grace-${marker.id}`)
-    , t2));
+  if (marker.notifyGrace) {
+    const t2 = (marker.expiresAt + GRACE_MS) - WARN - now;
+    if (t2 > 0) {
+      ids.push(setTimeout(() =>
+        pushNotification(`⏰ ${marker.title}`, '緩衝時間剩 30 秒，香菇即將消失！', `grace-${marker.id}`)
+      , t2));
+    }
   }
 
   if (ids.length) scheduledNotifications.set(marker.id, ids);
@@ -303,9 +304,10 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
 });
 
 document.getElementById('modal-save').addEventListener('click', async () => {
-  const wantsNotify = document.getElementById('notify-enabled').checked;
+  const notifyExpiry = document.getElementById('notify-expiry').checked;
+  const notifyGrace  = document.getElementById('notify-grace').checked;
   // Permission request must come from a user gesture (iOS Safari requirement)
-  if (wantsNotify) await requestNotificationPermission();
+  if (notifyExpiry || notifyGrace) await requestNotificationPermission();
   const title = markerTitleInput.value.trim() || '香菇';
   const h = parseInt(timeHours.value) || 0;
   const m = parseInt(timeMinutes.value) || 0;
@@ -324,12 +326,13 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     y: pendingY,
     totalMs,
     expiresAt: Date.now() + totalMs,
-    notify: wantsNotify
+    notifyExpiry,
+    notifyGrace
   };
 
   markers.push(marker);
   saveMarkers();
-  if (wantsNotify) scheduleMarkerNotifications(marker);
+  if (notifyExpiry || notifyGrace) scheduleMarkerNotifications(marker);
   renderMarker(marker);
   updateMarkerCount();
   closeAddModal();
@@ -440,9 +443,9 @@ async function init() {
   if (hasImage) {
     renderAllMarkers();
   }
-  // Re-schedule notifications on page load for markers that have notify enabled
+  // Re-schedule notifications on page load for markers that have any notify flag
   if ('Notification' in window && Notification.permission === 'granted') {
-    markers.filter(m => m.notify).forEach(scheduleMarkerNotifications);
+    markers.filter(m => m.notifyExpiry || m.notifyGrace).forEach(scheduleMarkerNotifications);
   }
 }
 
