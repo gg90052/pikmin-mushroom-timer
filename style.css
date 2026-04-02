@@ -247,45 +247,37 @@ html, body {
   letter-spacing: 0.5px;
 }
 
-.marker-pin {
-  width: 14px;
-  height: 14px;
+/* ── Pie Chart ── */
+.marker-pie {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 2.5px solid rgba(0,0,0,0.4);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  border: 2px solid rgba(0, 0, 0, 0.28);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   flex-shrink: 0;
+  background: conic-gradient(
+    from -90deg,
+    var(--pie-color, #e03030) 0% var(--pie-pct, 100%),
+    white var(--pie-pct, 100%) 100%
+  );
 }
 
-/* Marker color states */
-.marker.state-green .marker-countdown { color: var(--marker-green); }
-.marker.state-green .marker-pin { background: var(--marker-green); }
-.marker.state-green .marker-bubble { border-color: rgba(76,222,76,0.35); }
+/* Active countdown: red */
+.marker.state-active .marker-countdown { color: #e84040; }
+.marker.state-active .marker-bubble { border-color: rgba(232, 64, 64, 0.3); }
 
-.marker.state-yellow .marker-countdown { color: var(--marker-yellow); }
-.marker.state-yellow .marker-pin { background: var(--marker-yellow); }
-.marker.state-yellow .marker-bubble { border-color: rgba(240,208,64,0.35); }
+/* Grace period: green */
+.marker.state-grace .marker-countdown { color: #3cc83c; }
+.marker.state-grace .marker-bubble { border-color: rgba(60, 200, 60, 0.3); }
 
-.marker.state-orange .marker-countdown { color: var(--marker-orange); }
-.marker.state-orange .marker-pin { background: var(--marker-orange); }
-.marker.state-orange .marker-bubble { border-color: rgba(240,128,48,0.35); }
-
-.marker.state-red .marker-countdown { color: var(--marker-red); }
-.marker.state-red .marker-pin { background: var(--marker-red); }
-.marker.state-red .marker-bubble { border-color: rgba(232,48,48,0.35); }
-
-.marker.state-red.urgent .marker-pin {
-  animation: pulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes pulse {
-  from { transform: scale(1); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-  to { transform: scale(1.3); box-shadow: 0 2px 12px rgba(232,48,48,0.7); }
-}
-
-.marker.state-expired .marker-countdown { color: var(--marker-grey); }
-.marker.state-expired .marker-pin { background: var(--marker-grey); }
-.marker.state-expired .marker-bubble { opacity: 0.6; }
+/* Truly expired */
+.marker.state-expired .marker-countdown { color: #888; }
+.marker.state-expired .marker-bubble { opacity: 0.55; }
 .marker.state-expired .marker-title { color: var(--text-dim); }
+.marker.state-expired .marker-pie {
+  background: #888;
+  border-color: rgba(0, 0, 0, 0.2);
+}
 
 /* Selected marker */
 .marker.selected .marker-bubble {

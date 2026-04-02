@@ -35,8 +35,10 @@ function dbGet(store, key) {
   });
 }
 
+const GRACE_MS = 5 * 60 * 1000; // 5-minute grace period after expiry
+
 // ── State ──────────────────────────────────────────────────────────────────
-let markers = [];         // { id, title, x, y, expiresAt }
+let markers = [];         // { id, title, x, y, expiresAt, totalMs }
 let pendingX = 0;
 let pendingY = 0;
 let selectedMarkerId = null;
@@ -76,8 +78,7 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-function formatCountdown(ms) {
-  if (ms <= 0) return '已過期';
+function formatTime(ms) {
   const totalSec = Math.ceil(ms / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
@@ -87,17 +88,25 @@ function formatCountdown(ms) {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-function getMarkerState(ms) {
-  if (ms <= 0) return 'expired';
-  if (ms < 60_000) return 'red urgent';
-  if (ms < 300_000) return 'red';
-  if (ms < 900_000) return 'orange';
-  if (ms < 3_600_000) return 'yellow';
-  return 'green';
-}
+// Returns { phase, fraction, color, text } for a marker at current time
+function getMarkerInfo(marker) {
+  const now = Date.now();
+  const remaining = marker.expiresAt - now;
 
-function getTimeLabel(ms) {
-  return formatCountdown(ms);
+  if (remaining > 0) {
+    // Active: red pie depleting from full → empty
+    const fraction = Math.min(1, remaining / (marker.totalMs || remaining));
+    return { phase: 'active', fraction, color: '#e03030', text: formatTime(remaining) };
+  }
+
+  const graceRemaining = (marker.expiresAt + GRACE_MS) - now;
+  if (graceRemaining > 0) {
+    // Grace period: green pie depleting
+    const fraction = Math.min(1, graceRemaining / GRACE_MS);
+    return { phase: 'grace', fraction, color: '#3cc83c', text: formatTime(graceRemaining) };
+  }
+
+  return { phase: 'expired', fraction: 0, color: '#888', text: '已結束' };
 }
 
 // ── Marker Rendering ───────────────────────────────────────────────────────
@@ -108,11 +117,10 @@ function renderAllMarkers() {
 }
 
 function renderMarker(marker) {
-  const remaining = marker.expiresAt - Date.now();
-  const stateClasses = getMarkerState(remaining);
+  const info = getMarkerInfo(marker);
 
   const el = document.createElement('div');
-  el.className = `marker state-${stateClasses}`;
+  el.className = `marker state-${info.phase}`;
   el.dataset.id = marker.id;
   el.style.left = (marker.x * 100) + '%';
   el.style.top = (marker.y * 100) + '%';
@@ -126,17 +134,18 @@ function renderMarker(marker) {
 
   const countdown = document.createElement('div');
   countdown.className = 'marker-countdown';
-  countdown.textContent = getTimeLabel(remaining);
+  countdown.textContent = info.text;
 
   bubble.appendChild(titleEl);
   bubble.appendChild(countdown);
   el.appendChild(bubble);
 
-  const pin = document.createElement('div');
-  pin.className = 'marker-pin';
-  el.appendChild(pin);
+  const pie = document.createElement('div');
+  pie.className = 'marker-pie';
+  pie.style.setProperty('--pie-color', info.color);
+  pie.style.setProperty('--pie-pct', (info.fraction * 100).toFixed(1) + '%');
+  el.appendChild(pie);
 
-  // Tap to select / deselect
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleSelectMarker(marker.id);
@@ -189,25 +198,29 @@ function updateMarkerEl(id) {
   const el = markersLayer.querySelector(`[data-id="${id}"]`);
   if (!el) return;
 
-  const remaining = marker.expiresAt - Date.now();
-  const stateClasses = getMarkerState(remaining);
+  const info = getMarkerInfo(marker);
+  el.className = `marker state-${info.phase}${selectedMarkerId === id ? ' selected' : ''}`;
 
-  // Update class
-  el.className = `marker state-${stateClasses}${selectedMarkerId === id ? ' selected' : ''}`;
-
-  // Update countdown text
   const cd = el.querySelector('.marker-countdown');
-  if (cd) cd.textContent = getTimeLabel(remaining);
+  if (cd) cd.textContent = info.text;
+
+  const pie = el.querySelector('.marker-pie');
+  if (pie) {
+    pie.style.setProperty('--pie-color', info.color);
+    pie.style.setProperty('--pie-pct', (info.fraction * 100).toFixed(1) + '%');
+  }
 }
 
 function updateMarkerCount() {
-  const active = markers.filter(m => m.expiresAt > Date.now()).length;
-  const expired = markers.length - active;
-  if (expired > 0) {
-    markerCountEl.textContent = `${active} 個有效 · ${expired} 已過期`;
-  } else {
-    markerCountEl.textContent = `${markers.length} 個標記`;
-  }
+  const now = Date.now();
+  const active  = markers.filter(m => m.expiresAt > now).length;
+  const grace   = markers.filter(m => m.expiresAt <= now && (m.expiresAt + GRACE_MS) > now).length;
+  const expired = markers.filter(m => (m.expiresAt + GRACE_MS) <= now).length;
+  const parts = [];
+  if (active)  parts.push(`${active} 個倒數`);
+  if (grace)   parts.push(`${grace} 緩衝中`);
+  if (expired) parts.push(`${expired} 已結束`);
+  markerCountEl.textContent = parts.length ? parts.join(' · ') : '0 個標記';
 }
 
 // ── Tick ──────────────────────────────────────────────────────────────────
@@ -312,6 +325,7 @@ document.getElementById('modal-save').addEventListener('click', () => {
     title,
     x: pendingX,
     y: pendingY,
+    totalMs,
     expiresAt: Date.now() + totalMs
   };
 
@@ -355,7 +369,7 @@ document.getElementById('delete-confirm').addEventListener('click', () => {
 
 // ── Clear Expired ──────────────────────────────────────────────────────────
 document.getElementById('clear-expired-btn').addEventListener('click', () => {
-  markers = markers.filter(m => m.expiresAt > Date.now());
+  markers = markers.filter(m => (m.expiresAt + GRACE_MS) > Date.now());
   saveMarkers();
   renderAllMarkers();
 });
