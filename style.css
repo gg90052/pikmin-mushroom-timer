@@ -161,10 +161,15 @@ html, body {
 /* ── Map Container ── */
 #map-container {
   flex: 1;
-  position: relative;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   background: #0a1a05;
+}
+
+/* Wrapper 高度由圖片撐開，markers-layer 的 height:100% 才能覆蓋完整圖片 */
+#map-wrapper {
+  position: relative;
+  line-height: 0; /* 消除 img 下方多餘空隙 */
 }
 
 #map-image {
