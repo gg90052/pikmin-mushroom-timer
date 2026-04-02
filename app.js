@@ -52,7 +52,7 @@ const mapView = document.getElementById('map-view');
 const mapImage = document.getElementById('map-image');
 const markersLayer = document.getElementById('markers-layer');
 const fileInput = document.getElementById('file-input');
-const markerCountEl = document.getElementById('marker-count');
+const bossOverlay = document.getElementById('boss-overlay');
 const modalOverlay = document.getElementById('modal-overlay');
 const markerTitleInput = document.getElementById('marker-title');
 const timeHours = document.getElementById('time-hours');
@@ -165,7 +165,6 @@ function getMarkerInfo(marker) {
 function renderAllMarkers() {
   markersLayer.innerHTML = '';
   markers.forEach(renderMarker);
-  updateMarkerCount();
 }
 
 function renderMarker(marker) {
@@ -252,24 +251,12 @@ function updateMarkerEl(id) {
   }
 }
 
-function updateMarkerCount() {
-  const now = Date.now();
-  const active  = markers.filter(m => m.expiresAt > now).length;
-  const grace   = markers.filter(m => m.expiresAt <= now && (m.expiresAt + GRACE_MS) > now).length;
-  const expired = markers.filter(m => (m.expiresAt + GRACE_MS) <= now).length;
-  const parts = [];
-  if (active)  parts.push(`${active} 個倒數`);
-  if (grace)   parts.push(`${grace} 緩衝中`);
-  if (expired) parts.push(`${expired} 已結束`);
-  markerCountEl.textContent = parts.length ? parts.join(' · ') : '0 個標記';
-}
 
 // ── Tick ──────────────────────────────────────────────────────────────────
 function startTick() {
   if (tickInterval) return;
   tickInterval = setInterval(() => {
     markers.forEach(m => updateMarkerEl(m.id));
-    updateMarkerCount();
   }, 1000);
 }
 
@@ -335,7 +322,6 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   saveMarkers();
   if (notifyExpiry || notifyGrace) scheduleMarkerNotifications(marker);
   renderMarker(marker);
-  updateMarkerCount();
   closeAddModal();
 });
 
@@ -381,7 +367,6 @@ document.getElementById('delete-confirm').addEventListener('click', () => {
   if (el) el.remove();
   pendingDeleteId = null;
   deleteOverlay.classList.add('hidden');
-  updateMarkerCount();
 });
 
 // ── Clear Expired ──────────────────────────────────────────────────────────
@@ -435,6 +420,14 @@ fileInput.addEventListener('change', () => {
 
 document.getElementById('upload-btn').addEventListener('click', () => fileInput.click());
 document.getElementById('change-image-btn').addEventListener('click', () => fileInput.click());
+
+// ── Boss Key ───────────────────────────────────────────────────────────────
+document.getElementById('boss-key-btn').addEventListener('click', () => {
+  bossOverlay.classList.add('active');
+});
+bossOverlay.addEventListener('click', () => {
+  bossOverlay.classList.remove('active');
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
