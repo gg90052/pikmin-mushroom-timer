@@ -96,22 +96,23 @@ function scheduleMarkerNotifications(marker) {
   cancelMarkerNotifications(marker.id);
   const now = Date.now();
   const ids = [];
-  const WARN = 30_000;
 
   if (marker.notifyExpiry) {
-    const t1 = marker.expiresAt - WARN - now;
+    // Fire exactly when countdown reaches zero
+    const t1 = marker.expiresAt - now;
     if (t1 > 0) {
       ids.push(setTimeout(() =>
-        pushNotification(`🍄 ${marker.title}`, '倒數結束前 30 秒！即將進入 5 分鐘緩衝', `expiry-${marker.id}`)
+        pushNotification(`🍄 ${marker.title}`, '倒數已結束，進入 5 分鐘緩衝時間', `expiry-${marker.id}`)
       , t1));
     }
   }
 
   if (marker.notifyGrace) {
-    const t2 = (marker.expiresAt + GRACE_MS) - WARN - now;
+    // Fire 30s before grace period ends (= 重生提醒)
+    const t2 = (marker.expiresAt + GRACE_MS) - 30_000 - now;
     if (t2 > 0) {
       ids.push(setTimeout(() =>
-        pushNotification(`⏰ ${marker.title}`, '緩衝時間剩 30 秒，香菇即將消失！', `grace-${marker.id}`)
+        pushNotification(`🌱 ${marker.title} 即將重生！`, '香菇重生前 30 秒，準備採集！', `grace-${marker.id}`)
       , t2));
     }
   }
@@ -288,7 +289,7 @@ function openAddModal(xPct, yPct) {
   pendingY = yPct;
   markerTitleInput.value = '';
   timeHours.value = '0';
-  timeMinutes.value = '30';
+  timeMinutes.value = '0';
   timeSeconds.value = '0';
   modalOverlay.classList.remove('hidden');
   setTimeout(() => markerTitleInput.focus(), 100);
