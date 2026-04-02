@@ -303,8 +303,9 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
 });
 
 document.getElementById('modal-save').addEventListener('click', async () => {
-  // Must request from a user-gesture (required by iOS Safari)
-  await requestNotificationPermission();
+  const wantsNotify = document.getElementById('notify-enabled').checked;
+  // Permission request must come from a user gesture (iOS Safari requirement)
+  if (wantsNotify) await requestNotificationPermission();
   const title = markerTitleInput.value.trim() || '香菇';
   const h = parseInt(timeHours.value) || 0;
   const m = parseInt(timeMinutes.value) || 0;
@@ -322,12 +323,13 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     x: pendingX,
     y: pendingY,
     totalMs,
-    expiresAt: Date.now() + totalMs
+    expiresAt: Date.now() + totalMs,
+    notify: wantsNotify
   };
 
   markers.push(marker);
   saveMarkers();
-  scheduleMarkerNotifications(marker);
+  if (wantsNotify) scheduleMarkerNotifications(marker);
   renderMarker(marker);
   updateMarkerCount();
   closeAddModal();
@@ -438,9 +440,9 @@ async function init() {
   if (hasImage) {
     renderAllMarkers();
   }
-  // Re-schedule any pending notifications on page load (if already permitted)
+  // Re-schedule notifications on page load for markers that have notify enabled
   if ('Notification' in window && Notification.permission === 'granted') {
-    markers.forEach(scheduleMarkerNotifications);
+    markers.filter(m => m.notify).forEach(scheduleMarkerNotifications);
   }
 }
 
