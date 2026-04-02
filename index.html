@@ -106,6 +106,10 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(console.warn);
       });
+      // 當新版 Service Worker 接管後，自動重新載入頁面以套用更新
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     }
   </script>
 </body>
